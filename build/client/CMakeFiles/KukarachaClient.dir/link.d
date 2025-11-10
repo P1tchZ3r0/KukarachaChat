@@ -59,8 +59,8 @@ KukarachaClient: \
   /usr/lib/libfreetype.so.6 \
   /usr/lib32/libGLdispatch.so.0 \
   /usr/lib/libGLdispatch.so.0 \
-  /usr/lib/libicui18n.so.76 \
-  /usr/lib/libicuuc.so.76 \
+  /usr/lib/libicui18n.so.78 \
+  /usr/lib/libicuuc.so.78 \
   /usr/lib/libsystemd.so.0 \
   /usr/lib/libdouble-conversion.so.3 \
   /usr/lib/libb2.so.1 \
@@ -93,8 +93,8 @@ KukarachaClient: \
   /usr/lib/libgraphite2.so.3 \
   /usr/lib32/libbz2.so.1.0 \
   /usr/lib/libbz2.so.1.0 \
-  /usr/lib32/libicudata.so.76 \
-  /usr/lib/libicudata.so.76 \
+  /usr/lib32/libicudata.so.78 \
+  /usr/lib/libicudata.so.78 \
   /usr/lib32/libcap.so.2 \
   /usr/lib/libcap.so.2 \
   /usr/lib32/libgomp.so.1 \
@@ -251,9 +251,9 @@ CMakeFiles/KukarachaClient.dir/src/ChatClient.cpp.o:
 
 /usr/lib/libGLdispatch.so.0:
 
-/usr/lib/libicui18n.so.76:
+/usr/lib/libicui18n.so.78:
 
-/usr/lib/libicuuc.so.76:
+/usr/lib/libicuuc.so.78:
 
 /usr/lib/libsystemd.so.0:
 
@@ -319,9 +319,9 @@ CMakeFiles/KukarachaClient.dir/src/ChatClient.cpp.o:
 
 /usr/lib/libbz2.so.1.0:
 
-/usr/lib32/libicudata.so.76:
+/usr/lib32/libicudata.so.78:
 
-/usr/lib/libicudata.so.76:
+/usr/lib/libicudata.so.78:
 
 /usr/lib32/libcap.so.2:
 

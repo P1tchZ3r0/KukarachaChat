@@ -32,6 +32,7 @@ private:
     void appendSystemMessage(const QString &message);
     void updateControls();
     void showMessageNotification(const ChatMessage &message);
+    static QString htmlEscape(const QString &text);
 
     std::unique_ptr<ChatClient> m_client;
     QTextEdit *m_chatView = nullptr;

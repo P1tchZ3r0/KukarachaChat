@@ -44,8 +44,8 @@ KukarachaServer: \
   /usr/lib/libproxy.so.1 \
   /usr/lib/libproxy.so.1 \
   /usr/lib/libcrypto.so.3 \
-  /usr/lib/libicui18n.so.76 \
-  /usr/lib/libicuuc.so.76 \
+  /usr/lib/libicui18n.so.78 \
+  /usr/lib/libicuuc.so.78 \
   /usr/lib/libglib-2.0.so.0 \
   /usr/lib/libsystemd.so.0 \
   /usr/lib/libdouble-conversion.so.3 \
@@ -69,8 +69,8 @@ KukarachaServer: \
   /usr/lib/libproxy/libpxbackend-1.0.so \
   /usr/lib32/libgobject-2.0.so.0 \
   /usr/lib/libgobject-2.0.so.0 \
-  /usr/lib32/libicudata.so.76 \
-  /usr/lib/libicudata.so.76 \
+  /usr/lib32/libicudata.so.78 \
+  /usr/lib/libicudata.so.78 \
   /usr/lib32/libpcre2-8.so.0 \
   /usr/lib/libpcre2-8.so.0 \
   /usr/lib32/libcap.so.2 \
@@ -195,9 +195,9 @@ CMakeFiles/KukarachaServer.dir/src/UserStore.cpp.o:
 
 /usr/lib/libcrypto.so.3:
 
-/usr/lib/libicui18n.so.76:
+/usr/lib/libicui18n.so.78:
 
-/usr/lib/libicuuc.so.76:
+/usr/lib/libicuuc.so.78:
 
 /usr/lib/libglib-2.0.so.0:
 
@@ -245,9 +245,9 @@ CMakeFiles/KukarachaServer.dir/src/UserStore.cpp.o:
 
 /usr/lib/libgobject-2.0.so.0:
 
-/usr/lib32/libicudata.so.76:
+/usr/lib32/libicudata.so.78:
 
-/usr/lib/libicudata.so.76:
+/usr/lib/libicudata.so.78:
 
 /usr/lib32/libpcre2-8.so.0:
 

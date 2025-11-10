@@ -158,8 +158,15 @@ void MainWindow::onMessageReceived(const ChatMessage &message)
     }
 
     const auto timeStamp = message.timestamp().toLocalTime().toString("hh:mm:ss");
-    const auto formatted = QStringLiteral("[%1] %2: %3").arg(timeStamp, message.sender(), message.text());
-    m_chatView->append(formatted);
+    const auto escapedSender = htmlEscape(message.sender());
+    const auto escapedText = htmlEscape(message.text());
+    const auto escapedTime = htmlEscape(timeStamp);
+    const bool isSelf = QString::compare(message.sender(), m_client->userName(), Qt::CaseInsensitive) == 0;
+    const auto senderStyle = isSelf ? QStringLiteral("font-weight:600;color:#5fb8ff;") : QStringLiteral("font-weight:600;color:#ffffff;");
+    const auto textStyle = isSelf ? QStringLiteral("color:#d0ecff;") : QStringLiteral("color:#ffffff;");
+    const auto html = QStringLiteral("<div><span style=\"color:#888888\">[%1]</span> <span style=\"%2\">%3</span>: <span style=\"%4\">%5</span></div>")
+                          .arg(escapedTime, senderStyle, escapedSender, textStyle, escapedText);
+    m_chatView->append(html);
     showMessageNotification(message);
 }
 
@@ -180,7 +187,10 @@ void MainWindow::onErrorOccurred(const QString &message)
 void MainWindow::appendSystemMessage(const QString &message)
 {
     const auto timeStamp = QDateTime::currentDateTime().toString("hh:mm:ss");
-    m_chatView->append(QStringLiteral("[%1] <i>%2</i>").arg(timeStamp, message));
+    const auto escapedTime = htmlEscape(timeStamp);
+    const auto escapedText = htmlEscape(message);
+    const auto html = QStringLiteral("<div style=\"color:#7f8c99\">[%1] <i>%2</i></div>").arg(escapedTime, escapedText);
+    m_chatView->append(html);
 }
 
 void MainWindow::onAuthenticatedChanged(bool authenticated)
@@ -190,6 +200,12 @@ void MainWindow::onAuthenticatedChanged(bool authenticated)
     if (authenticated) {
         appendSystemMessage(tr("Вы успешно вошли в систему"));
     }
+}
+
+QString MainWindow::htmlEscape(const QString &text)
+{
+    QString escaped = text.toHtmlEscaped();
+    return escaped.replace(QStringLiteral("\n"), QStringLiteral("<br/>"));
 }
 
 void MainWindow::updateControls()
