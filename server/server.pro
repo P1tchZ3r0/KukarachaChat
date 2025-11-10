@@ -10,12 +10,14 @@ INCLUDEPATH += $$PWD/src \
 
 HEADERS += \
     src/ChatServer.h \
-    src/ClientConnection.h
+    src/ClientConnection.h \
+    src/UserStore.h
 
 SOURCES += \
     src/main.cpp \
     src/ChatServer.cpp \
-    src/ClientConnection.cpp
+    src/ClientConnection.cpp \
+    src/UserStore.cpp
 
 LIBS += -L$$OUT_PWD/../common -lKukarachaCommon
 

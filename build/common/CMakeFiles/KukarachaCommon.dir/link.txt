@@ -1,0 +1,2 @@
+/usr/bin/ar qc libKukarachaCommon.a CMakeFiles/KukarachaCommon.dir/KukarachaCommon_autogen/mocs_compilation.cpp.o CMakeFiles/KukarachaCommon.dir/src/ChatMessage.cpp.o CMakeFiles/KukarachaCommon.dir/src/JsonMessageSerializer.cpp.o
+/usr/bin/ranlib libKukarachaCommon.a

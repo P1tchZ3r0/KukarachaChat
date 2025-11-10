@@ -1,0 +1,7 @@
+# Hashes of file build rules.
+e863e443fa51ee7a523a2dcb96c04b62 client/CMakeFiles/KukarachaClient_autogen
+8de24338cafb3d6c01cd6ac4715049bd client/KukarachaClient_autogen/timestamp
+ec8aa8ac6eecff310d6aa87d2f187905 common/CMakeFiles/KukarachaCommon_autogen
+691ce2988f2a712e954f9104e8b4826f common/KukarachaCommon_autogen/timestamp
+87daa01675571a68bae9b537e9f7ef05 server/CMakeFiles/KukarachaServer_autogen
+f9697a84291ea8926cd0194d0e91c541 server/KukarachaServer_autogen/timestamp

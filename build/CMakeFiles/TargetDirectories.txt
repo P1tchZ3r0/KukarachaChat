@@ -1,0 +1,17 @@
+/home/p1tch_z3r0/Projects/Kukaracha/build/CMakeFiles/edit_cache.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/CMakeFiles/rebuild_cache.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/common/CMakeFiles/KukarachaCommon.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/common/CMakeFiles/edit_cache.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/common/CMakeFiles/rebuild_cache.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/common/CMakeFiles/KukarachaCommon_autogen_timestamp_deps.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/common/CMakeFiles/KukarachaCommon_autogen.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/server/CMakeFiles/KukarachaServer.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/server/CMakeFiles/edit_cache.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/server/CMakeFiles/rebuild_cache.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/server/CMakeFiles/KukarachaServer_autogen_timestamp_deps.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/server/CMakeFiles/KukarachaServer_autogen.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/client/CMakeFiles/KukarachaClient.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/client/CMakeFiles/edit_cache.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/client/CMakeFiles/rebuild_cache.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/client/CMakeFiles/KukarachaClient_autogen_timestamp_deps.dir
+/home/p1tch_z3r0/Projects/Kukaracha/build/client/CMakeFiles/KukarachaClient_autogen.dir

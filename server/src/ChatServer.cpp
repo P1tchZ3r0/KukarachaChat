@@ -10,6 +10,7 @@
 #include <QtGlobal>
 
 #include <algorithm>
+#include <optional>
 
 Q_LOGGING_CATEGORY(chatServerCore, "kukaracha.server.core")
 
@@ -23,6 +24,8 @@ bool parseAllowRegistration()
     }
     return false;
 }
+
+const QString kAdminUser = QStringLiteral("admin");
 } // namespace
 
 ChatServer::ChatServer(QObject *parent)
@@ -100,6 +103,12 @@ void ChatServer::onMessageReceived(const ChatMessage &message, ClientConnection 
             return;
         }
 
+        if (m_bannedUsers.contains(requestedName)) {
+            sender->sendMessage(ChatMessage{"SERVER", tr("AUTH_FAIL: Пользователь заблокирован")});
+            sender->disconnectFromServer();
+            return;
+        }
+
         QString errorMessage;
         UserStore::AuthResult authResult;
         const bool userExists = m_userStore.contains(requestedName);
@@ -126,14 +135,7 @@ void ChatServer::onMessageReceived(const ChatMessage &message, ClientConnection 
                 sender->sendMessage(ChatMessage{"SERVER", tr("Вход выполнен")});
             }
             qCInfo(chatServerCore) << "Пользователь авторизован:" << requestedName;
-            for (auto *client : m_clients) {
-                if (client && client != sender) {
-                    client->sendMessage(ChatMessage{
-                        QStringLiteral("SERVER"),
-                        tr("%1 присоединился к чату").arg(requestedName)
-                    });
-                }
-            }
+            broadcastSystemMessage(tr("%1 вошёл в чат").arg(requestedName));
             break;
         case UserStore::AuthResult::WrongPassword:
         case UserStore::AuthResult::InvalidCredentials:
@@ -159,6 +161,12 @@ void ChatServer::onMessageReceived(const ChatMessage &message, ClientConnection 
         return;
     }
 
+    if (QString::compare(sender->userName(), kAdminUser, Qt::CaseInsensitive) == 0) {
+        if (handleAdminCommand(ChatMessage{sender->userName(), text, message.timestamp()}, sender)) {
+            return;
+        }
+    }
+
     qCInfo(chatServerCore) << "Сообщение от" << message.sender() << ':' << message.text();
     for (auto *client : m_clients) {
         if (client) {
@@ -172,8 +180,153 @@ void ChatServer::onConnectionClosed(ClientConnection *connection)
     const auto end = std::remove(m_clients.begin(), m_clients.end(), connection);
     m_clients.erase(end, m_clients.end());
     if (connection && connection->hasUserName()) {
-        m_clientsByName.remove(connection->userName());
+        const auto name = connection->userName();
+        m_clientsByName.remove(name);
+        broadcastSystemMessage(tr("%1 покинул чат").arg(name));
     }
     qCInfo(chatServerCore) << "Клиент отключился";
+}
+
+void ChatServer::broadcastSystemMessage(const QString &text)
+{
+    for (auto *client : m_clients) {
+        if (client) {
+            client->sendMessage(ChatMessage{QStringLiteral("SERVER"), text});
+        }
+    }
+}
+
+bool ChatServer::handleAdminCommand(const ChatMessage &message, ClientConnection *sender)
+{
+    if (!sender) {
+        return false;
+    }
+
+    const auto text = message.text().trimmed();
+    if (!text.startsWith(QLatin1Char('/'))) {
+        return false;
+    }
+
+    const auto parts = text.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    if (parts.isEmpty()) {
+        return false;
+    }
+
+    const auto command = parts.first().toLower();
+    const auto requireTarget = [&](const QString &action) -> std::optional<QString> {
+        if (parts.size() < 2) {
+            sender->sendMessage(ChatMessage{
+                QStringLiteral("SERVER"),
+                tr("Команда %1 требует указать имя пользователя").arg(action)
+            });
+            return std::nullopt;
+        }
+        const auto target = parts.at(1).trimmed();
+        if (target.isEmpty()) {
+            sender->sendMessage(ChatMessage{
+                QStringLiteral("SERVER"),
+                tr("Имя пользователя не может быть пустым")
+            });
+            return std::nullopt;
+        }
+        if (QString::compare(target, sender->userName(), Qt::CaseInsensitive) == 0) {
+            sender->sendMessage(ChatMessage{
+                QStringLiteral("SERVER"),
+                tr("Нельзя выполнить команду %1 на себе").arg(action)
+            });
+            return std::nullopt;
+        }
+        return target;
+    };
+
+    if (command == QStringLiteral("/kick")) {
+        const auto targetOpt = requireTarget(QStringLiteral("/kick"));
+        if (!targetOpt.has_value()) {
+            return true;
+        }
+        const auto targetName = targetOpt.value();
+        if (auto *target = findClientByName(targetName)) {
+            target->sendMessage(ChatMessage{
+                QStringLiteral("SERVER"),
+                tr("Вас отключил администратор")
+            });
+            target->disconnectFromServer();
+            sender->sendMessage(ChatMessage{
+                QStringLiteral("SERVER"),
+                tr("Пользователь %1 отключён").arg(targetName)
+            });
+        } else {
+            sender->sendMessage(ChatMessage{
+                QStringLiteral("SERVER"),
+                tr("Пользователь %1 не найден").arg(targetName)
+            });
+        }
+        return true;
+    }
+
+    if (command == QStringLiteral("/ban")) {
+        const auto targetOpt = requireTarget(QStringLiteral("/ban"));
+        if (!targetOpt.has_value()) {
+            return true;
+        }
+        const auto targetName = targetOpt.value();
+        if (m_bannedUsers.contains(targetName)) {
+            sender->sendMessage(ChatMessage{
+                QStringLiteral("SERVER"),
+                tr("Пользователь %1 уже заблокирован").arg(targetName)
+            });
+            return true;
+        }
+        m_bannedUsers.insert(targetName);
+        if (auto *target = findClientByName(targetName)) {
+            target->sendMessage(ChatMessage{
+                QStringLiteral("SERVER"),
+                tr("Вы заблокированы администратором")
+            });
+            target->disconnectFromServer();
+        }
+        sender->sendMessage(ChatMessage{
+            QStringLiteral("SERVER"),
+            tr("Пользователь %1 заблокирован").arg(targetName)
+        });
+        return true;
+    }
+
+    if (command == QStringLiteral("/unban")) {
+        const auto targetOpt = requireTarget(QStringLiteral("/unban"));
+        if (!targetOpt.has_value()) {
+            return true;
+        }
+        const auto targetName = targetOpt.value();
+        if (!m_bannedUsers.contains(targetName)) {
+            sender->sendMessage(ChatMessage{
+                QStringLiteral("SERVER"),
+                tr("Пользователь %1 не числится в бан-листе").arg(targetName)
+            });
+            return true;
+        }
+        m_bannedUsers.remove(targetName);
+        sender->sendMessage(ChatMessage{
+            QStringLiteral("SERVER"),
+            tr("Пользователь %1 разблокирован").arg(targetName)
+        });
+        return true;
+    }
+
+    sender->sendMessage(ChatMessage{
+        QStringLiteral("SERVER"),
+        tr("Неизвестная команда: %1").arg(command)
+    });
+    return true;
+}
+
+ClientConnection *ChatServer::findClientByName(const QString &name) const
+{
+    const auto trimmed = name.trimmed();
+    const auto it = m_clientsByName.find(trimmed);
+    if (it != m_clientsByName.end()) {
+        return it.value();
+    }
+    return nullptr;
 }
 

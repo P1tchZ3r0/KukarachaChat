@@ -1,0 +1,8 @@
+KukarachaCommon_autogen/timestamp: \
+	/home/p1tch_z3r0/Projects/Kukaracha/common/CMakeLists.txt \
+	/home/p1tch_z3r0/Projects/Kukaracha/common/src/ChatMessage.cpp \
+	/home/p1tch_z3r0/Projects/Kukaracha/common/src/ChatMessage.h \
+	/home/p1tch_z3r0/Projects/Kukaracha/common/src/IMessageSerializer.h \
+	/home/p1tch_z3r0/Projects/Kukaracha/common/src/JsonMessageSerializer.cpp \
+	/home/p1tch_z3r0/Projects/Kukaracha/common/src/JsonMessageSerializer.h \
+	/usr/bin/cmake

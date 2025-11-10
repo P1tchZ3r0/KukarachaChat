@@ -1,0 +1,10 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/p1tch_z3r0/Projects/Kukaracha/build/cmake_install.cmake",
+		"/home/p1tch_z3r0/Projects/Kukaracha/build/common/cmake_install.cmake",
+		"/home/p1tch_z3r0/Projects/Kukaracha/build/server/cmake_install.cmake",
+		"/home/p1tch_z3r0/Projects/Kukaracha/build/client/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

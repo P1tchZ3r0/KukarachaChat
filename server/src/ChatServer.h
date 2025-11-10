@@ -4,6 +4,7 @@
 
 #include <QTcpServer>
 #include <QHash>
+#include <QSet>
 #include <QString>
 #include <vector>
 
@@ -28,9 +29,13 @@ protected:
 private:
   void onMessageReceived(const ChatMessage &message, ClientConnection *sender);
   void onConnectionClosed(ClientConnection *connection);
+  void broadcastSystemMessage(const QString &text);
+  bool handleAdminCommand(const ChatMessage &message, ClientConnection *sender);
+  ClientConnection *findClientByName(const QString &name) const;
 
   std::vector<ClientConnection *> m_clients;
   QHash<QString, ClientConnection *> m_clientsByName;
   UserStore m_userStore;
   bool m_allowRegistration = false;
+  QSet<QString> m_bannedUsers;
 };
