@@ -19,12 +19,17 @@ ChatClient::ChatClient(QObject *parent)
 
 void ChatClient::connectToServer(const QString &host, quint16 port, QString userName, QString password)
 {
+    // Если уже подключены, отключаемся
     if (m_socket.state() != QAbstractSocket::UnconnectedState) {
         m_socket.abort();
     }
-    m_userName = std::move(userName);
-    m_password = std::move(password);
+    
+    // Сохраняем данные для авторизации
+    m_userName = userName;
+    m_password = password;
     setAuthenticated(false);
+    
+    // Подключаемся к серверу
     m_socket.connectToHost(host, port);
 }
 
@@ -35,26 +40,36 @@ void ChatClient::disconnectFromServer()
 
 void ChatClient::sendMessage(const QString &text)
 {
-    if (text.trimmed().isEmpty()) {
+    // Проверяем, что текст не пустой
+    QString trimmed = text.trimmed();
+    if (trimmed.isEmpty()) {
         return;
     }
-    if (!isConnected()) {
+    
+    // Проверяем подключение
+    if (isConnected() == false) {
         emit errorOccurred(tr("Нет подключения к серверу"));
         return;
     }
 
-    if (!m_authenticated) {
+    // Проверяем авторизацию
+    if (m_authenticated == false) {
         emit errorOccurred(tr("Сначала выполните вход"));
         return;
     }
 
-    ChatMessage message{m_userName, text, QDateTime::currentDateTimeUtc()};
-    auto payload = m_serializer.serialize(message);
+    // Создаем сообщение
+    QDateTime currentTime = QDateTime::currentDateTimeUtc();
+    ChatMessage message(m_userName, text, currentTime);
+    
+    // Сериализуем и отправляем
+    QByteArray payload = m_serializer.serialize(message);
     payload.append('\n');
 
-    const auto bytesWritten = m_socket.write(payload);
+    qint64 bytesWritten = m_socket.write(payload);
     if (bytesWritten == -1) {
-        emit errorOccurred(m_socket.errorString());
+        QString error = m_socket.errorString();
+        emit errorOccurred(error);
     }
 }
 
@@ -75,13 +90,22 @@ bool ChatClient::isAuthenticated() const
 
 void ChatClient::handleReadyRead()
 {
-    m_buffer.append(m_socket.readAll());
+    // Читаем все доступные данные
+    QByteArray data = m_socket.readAll();
+    m_buffer.append(data);
 
-    int newlineIndex = -1;
-    while ((newlineIndex = m_buffer.indexOf('\n')) != -1) {
-        const auto payload = m_buffer.left(newlineIndex);
+    // Обрабатываем все сообщения в буфере
+    int newlineIndex = m_buffer.indexOf('\n');
+    while (newlineIndex != -1) {
+        // Извлекаем одно сообщение
+        QByteArray payload = m_buffer.left(newlineIndex);
         m_buffer.remove(0, newlineIndex + 1);
+        
+        // Обрабатываем сообщение
         processPayload(payload);
+        
+        // Ищем следующее сообщение
+        newlineIndex = m_buffer.indexOf('\n');
     }
 }
 
@@ -108,45 +132,53 @@ void ChatClient::handleSocketError(QAbstractSocket::SocketError error)
 void ChatClient::processPayload(const QByteArray &payload)
 {
     try {
-        const auto message = m_serializer.deserialize(payload);
+        // Десериализуем сообщение
+        ChatMessage message = m_serializer.deserialize(payload);
 
-        if (message.sender() == QStringLiteral("SERVER")) {
-            const auto text = message.text();
-            if (text.startsWith(QStringLiteral("AUTH_OK"))) {
+        // Проверяем, системное ли это сообщение
+        QString sender = message.sender();
+        if (sender == "SERVER") {
+            QString text = message.text();
+            
+            // Обрабатываем успешную авторизацию
+            if (text.startsWith("AUTH_OK")) {
                 setAuthenticated(true);
-                emit messageReceived(ChatMessage{
-                    QStringLiteral("SERVER"),
-                    tr("Авторизация успешна"),
-                    QDateTime::currentDateTimeUtc()
-                });
+                QDateTime currentTime = QDateTime::currentDateTimeUtc();
+                ChatMessage successMsg("SERVER", tr("Авторизация успешна"), currentTime);
+                emit messageReceived(successMsg);
                 return;
             }
 
-            if (text.startsWith(QStringLiteral("AUTH_FAIL:"))) {
-                const auto reason = text.mid(QStringLiteral("AUTH_FAIL:").size()).trimmed();
-                emit messageReceived(ChatMessage{
-                    QStringLiteral("SERVER"),
-                    tr("Авторизация не удалась: %1").arg(reason),
-                    QDateTime::currentDateTimeUtc()
-                });
+            // Обрабатываем ошибку авторизации
+            if (text.startsWith("AUTH_FAIL:")) {
+                int prefixLength = QString("AUTH_FAIL:").size();
+                QString reason = text.mid(prefixLength);
+                QString trimmedReason = reason.trimmed();
+                QDateTime currentTime = QDateTime::currentDateTimeUtc();
+                ChatMessage failMsg("SERVER", tr("Авторизация не удалась: %1").arg(trimmedReason), currentTime);
+                emit messageReceived(failMsg);
                 m_socket.disconnectFromHost();
                 return;
             }
 
-            if (text.startsWith(QStringLiteral("USER_LIST:"))) {
-                const auto userListStr = text.mid(QStringLiteral("USER_LIST:").size());
+            // Обрабатываем список пользователей
+            if (text.startsWith("USER_LIST:")) {
+                int prefixLength = QString("USER_LIST:").size();
+                QString userListStr = text.mid(prefixLength);
                 QStringList userList;
-                if (!userListStr.isEmpty()) {
-                    userList = userListStr.split(QStringLiteral(","), Qt::SkipEmptyParts);
+                if (userListStr.isEmpty() == false) {
+                    userList = userListStr.split(",", Qt::SkipEmptyParts);
                 }
                 emit userListReceived(userList);
                 return;
             }
         }
 
+        // Отправляем обычное сообщение
         emit messageReceived(message);
     } catch (const std::exception &exception) {
-        emit errorOccurred(tr("Некорректное сообщение от сервера: %1").arg(exception.what()));
+        QString errorMsg = exception.what();
+        emit errorOccurred(tr("Некорректное сообщение от сервера: %1").arg(errorMsg));
     }
 }
 
@@ -162,17 +194,25 @@ void ChatClient::setAuthenticated(bool authenticated)
 
 void ChatClient::sendAuthentication()
 {
-    if (m_userName.trimmed().isEmpty()) {
+    // Проверяем, что логин задан
+    QString trimmedName = m_userName.trimmed();
+    if (trimmedName.isEmpty()) {
         emit errorOccurred(tr("Логин не задан"));
         return;
     }
 
-    ChatMessage authMessage{m_userName, m_password, QDateTime::currentDateTimeUtc()};
-    auto payload = m_serializer.serialize(authMessage);
+    // Создаем сообщение авторизации
+    QDateTime currentTime = QDateTime::currentDateTimeUtc();
+    ChatMessage authMessage(m_userName, m_password, currentTime);
+    
+    // Сериализуем и отправляем
+    QByteArray payload = m_serializer.serialize(authMessage);
     payload.append('\n');
-    const auto bytesWritten = m_socket.write(payload);
+    
+    qint64 bytesWritten = m_socket.write(payload);
     if (bytesWritten == -1) {
-        emit errorOccurred(m_socket.errorString());
+        QString error = m_socket.errorString();
+        emit errorOccurred(error);
     }
 }
 

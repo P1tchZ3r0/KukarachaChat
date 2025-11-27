@@ -24,53 +24,83 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , m_client(std::make_unique<ChatClient>(this))
 {
+    // Создаем клиент для работы с сервером
+    m_client = std::make_unique<ChatClient>(this);
+    
+    // Загружаем сохраненную тему
     loadTheme();
+    
+    // Строим интерфейс
     buildUi();
+    
+    // Подключаем сигналы к слотам
     bindSignals();
+    
+    // Применяем тему
     applyTheme(m_currentTheme);
+    
+    // Показываем приветственное сообщение
     appendSystemMessage(tr("Введите данные сервера и нажмите Подключиться"));
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow()
+{
+    // Деструктор - Qt сам удалит виджеты
+}
 
 void MainWindow::buildUi()
 {
+    // Создаем центральный виджет
     m_centralWidget = new QWidget(this);
-    auto *mainLayout = new QHBoxLayout(m_centralWidget);
+    
+    // Создаем главный layout (горизонтальный)
+    QHBoxLayout *mainLayout = new QHBoxLayout(m_centralWidget);
     mainLayout->setContentsMargins(0, 0, 0, 0);
 
     // Основная часть (чат)
-    auto *chatWidget = new QWidget(m_centralWidget);
-    auto *layout = new QVBoxLayout(chatWidget);
+    QWidget *chatWidget = new QWidget(m_centralWidget);
+    QVBoxLayout *layout = new QVBoxLayout(chatWidget);
 
-    auto *connectionLayout = new QHBoxLayout();
-    connectionLayout->addWidget(new QLabel(tr("Хост:"), chatWidget));
-    m_hostEdit = new QLineEdit(QStringLiteral("127.0.0.1"), chatWidget);
+    // Layout для полей подключения
+    QHBoxLayout *connectionLayout = new QHBoxLayout();
+    
+    // Поле для хоста
+    QLabel *hostLabel = new QLabel(tr("Хост:"), chatWidget);
+    connectionLayout->addWidget(hostLabel);
+    m_hostEdit = new QLineEdit("127.0.0.1", chatWidget);
     connectionLayout->addWidget(m_hostEdit);
 
-    connectionLayout->addWidget(new QLabel(tr("Порт:"), chatWidget));
+    // Поле для порта
+    QLabel *portLabel = new QLabel(tr("Порт:"), chatWidget);
+    connectionLayout->addWidget(portLabel);
     m_portEdit = new QLineEdit(QString::number(4242), chatWidget);
     m_portEdit->setMaximumWidth(80);
     connectionLayout->addWidget(m_portEdit);
 
-    connectionLayout->addWidget(new QLabel(tr("Имя:"), chatWidget));
-    m_userNameEdit = new QLineEdit(QStringLiteral("User"), chatWidget);
+    // Поле для имени пользователя
+    QLabel *nameLabel = new QLabel(tr("Имя:"), chatWidget);
+    connectionLayout->addWidget(nameLabel);
+    m_userNameEdit = new QLineEdit("User", chatWidget);
     connectionLayout->addWidget(m_userNameEdit);
 
-    connectionLayout->addWidget(new QLabel(tr("Пароль:"), chatWidget));
+    // Поле для пароля
+    QLabel *passLabel = new QLabel(tr("Пароль:"), chatWidget);
+    connectionLayout->addWidget(passLabel);
     m_passwordEdit = new QLineEdit(chatWidget);
     m_passwordEdit->setEchoMode(QLineEdit::Password);
     connectionLayout->addWidget(m_passwordEdit);
 
+    // Кнопка подключения
     m_connectButton = new QPushButton(tr("Подключиться"), chatWidget);
     connectionLayout->addWidget(m_connectButton);
     
+    // Кнопка смены темы
     m_themeButton = new QPushButton(tr("Тема"), chatWidget);
     m_themeButton->setMaximumWidth(80);
     connectionLayout->addWidget(m_themeButton);
     
+    // Растягиваем пространство
     connectionLayout->addStretch();
 
     layout->addLayout(connectionLayout);
@@ -79,24 +109,28 @@ void MainWindow::buildUi()
     m_chatView->setReadOnly(true);
     layout->addWidget(m_chatView, 1);
 
-    auto *messageLayout = new QHBoxLayout();
+    // Layout для ввода сообщения
+    QHBoxLayout *messageLayout = new QHBoxLayout();
     m_messageEdit = new QLineEdit(chatWidget);
     m_messageEdit->setPlaceholderText(tr("Введите сообщение..."));
     messageLayout->addWidget(m_messageEdit, 1);
 
+    // Кнопка отправки
     m_sendButton = new QPushButton(tr("Отправить"), chatWidget);
     messageLayout->addWidget(m_sendButton);
 
     layout->addLayout(messageLayout);
 
-    // Панель со списком пользователей
+    // Панель со списком пользователей справа
     m_userListPanel = new QWidget(m_centralWidget);
-    auto *userListLayout = new QVBoxLayout(m_userListPanel);
+    QVBoxLayout *userListLayout = new QVBoxLayout(m_userListPanel);
     userListLayout->setContentsMargins(5, 5, 5, 5);
     
+    // Заголовок списка пользователей
     m_userListLabel = new QLabel(tr("Пользователи:"), m_userListPanel);
     userListLayout->addWidget(m_userListLabel);
     
+    // Сам список пользователей
     m_userListWidget = new QListWidget(m_userListPanel);
     m_userListWidget->setMaximumWidth(200);
     m_userListWidget->setMinimumWidth(150);
@@ -107,8 +141,10 @@ void MainWindow::buildUi()
     mainLayout->addWidget(m_userListPanel, 0);
 
     setCentralWidget(m_centralWidget);
-    const auto windowIcon = QIcon::fromTheme(QStringLiteral("mail-message-new"), QIcon::fromTheme(QStringLiteral("dialog-information")));
-    if (!windowIcon.isNull()) {
+    
+    // Устанавливаем иконку окна
+    QIcon windowIcon = QIcon::fromTheme("mail-message-new", QIcon::fromTheme("dialog-information"));
+    if (windowIcon.isNull() == false) {
         setWindowIcon(windowIcon);
     }
     setWindowTitle(tr("Кукарача Мессенджер"));
@@ -141,69 +177,98 @@ void MainWindow::bindSignals()
 
 void MainWindow::onSendClicked()
 {
-    if (!m_client->isConnected() || !m_authenticated) {
+    // Проверяем подключение
+    if (m_client->isConnected() == false || m_authenticated == false) {
         appendSystemMessage(tr("Сначала подключитесь к серверу"));
         return;
     }
 
-    const auto text = m_messageEdit->text();
-    if (text.trimmed().isEmpty()) {
+    // Получаем текст из поля ввода
+    QString text = m_messageEdit->text();
+    QString trimmedText = text.trimmed();
+    if (trimmedText.isEmpty()) {
         return;
     }
 
+    // Отправляем сообщение
     m_client->sendMessage(text);
+    
+    // Очищаем поле ввода
     m_messageEdit->clear();
 }
 
 void MainWindow::onConnectClicked()
 {
+    // Если уже подключены, отключаемся
     if (m_client->isConnected()) {
         m_client->disconnectFromServer();
         return;
     }
 
+    // Парсим порт
     bool ok = false;
-    const auto port = m_portEdit->text().toUShort(&ok);
-    if (!ok) {
+    QString portText = m_portEdit->text();
+    quint16 port = portText.toUShort(&ok);
+    if (ok == false) {
         onErrorOccurred(tr("Некорректный порт"));
         return;
     }
 
-    const auto host = m_hostEdit->text();
-    const auto name = m_userNameEdit->text().trimmed();
-    if (name.isEmpty()) {
+    // Получаем данные для подключения
+    QString host = m_hostEdit->text();
+    QString name = m_userNameEdit->text();
+    QString trimmedName = name.trimmed();
+    if (trimmedName.isEmpty()) {
         onErrorOccurred(tr("Введите имя пользователя"));
         return;
     }
 
-    const auto password = m_passwordEdit->text();
+    QString password = m_passwordEdit->text();
     if (password.isEmpty()) {
         onErrorOccurred(tr("Введите пароль"));
         return;
     }
 
-    m_client->connectToServer(host, port, name, password);
+    // Подключаемся к серверу
+    m_client->connectToServer(host, port, trimmedName, password);
 }
 
 void MainWindow::onMessageReceived(const ChatMessage &message)
 {
-    if (message.sender() == QStringLiteral("SERVER")) {
+    // Проверяем, системное ли это сообщение
+    QString sender = message.sender();
+    if (sender == "SERVER") {
+        // Сохраняем в историю
         ChatEntry entry;
-        entry.sender = QStringLiteral("SERVER");
+        entry.sender = "SERVER";
         entry.text = message.text();
         entry.timestamp = message.timestamp();
         entry.isSystem = true;
         m_chatHistory.append(entry);
         
-        const auto timeStamp = message.timestamp().toLocalTime().toString("hh:mm:ss");
-        const auto escapedTime = htmlEscape(timeStamp);
-        const auto escapedText = htmlEscape(message.text());
-        const QString systemColor = m_currentTheme == Theme::Dark ? QStringLiteral("#7f8c99") : QStringLiteral("#666666");
-        const auto html = QStringLiteral("<div style=\"color:%1\">[%2] <i>%3</i></div>").arg(systemColor, escapedTime, escapedText);
+        // Форматируем время
+        QDateTime timestamp = message.timestamp();
+        QDateTime localTime = timestamp.toLocalTime();
+        QString timeStamp = localTime.toString("hh:mm:ss");
+        QString escapedTime = htmlEscape(timeStamp);
+        QString messageText = message.text();
+        QString escapedText = htmlEscape(messageText);
+        
+        // Выбираем цвет в зависимости от темы
+        QString systemColor;
+        if (m_currentTheme == Theme::Dark) {
+            systemColor = "#7f8c99";
+        } else {
+            systemColor = "#666666";
+        }
+        
+        // Формируем HTML
+        QString html = QString("<div style=\"color:%1\">[%2] <i>%3</i></div>").arg(systemColor, escapedTime, escapedText);
         m_chatView->append(html);
         return;
     }
 
+    // Обычное сообщение от пользователя
     ChatEntry entry;
     entry.sender = message.sender();
     entry.text = message.text();
@@ -211,26 +276,53 @@ void MainWindow::onMessageReceived(const ChatMessage &message)
     entry.isSystem = false;
     m_chatHistory.append(entry);
 
-    const auto timeStamp = message.timestamp().toLocalTime().toString("hh:mm:ss");
-    const auto escapedSender = htmlEscape(message.sender());
-    const auto escapedText = htmlEscape(message.text());
-    const auto escapedTime = htmlEscape(timeStamp);
-    const bool isSelf = QString::compare(message.sender(), m_client->userName(), Qt::CaseInsensitive) == 0;
+    // Форматируем время
+    QDateTime timestamp = message.timestamp();
+    QDateTime localTime = timestamp.toLocalTime();
+    QString timeStamp = localTime.toString("hh:mm:ss");
+    QString escapedTime = htmlEscape(timeStamp);
     
-    QString senderStyle, textStyle, timeStyle;
+    // Экранируем текст
+    QString senderName = message.sender();
+    QString escapedSender = htmlEscape(senderName);
+    QString messageText = message.text();
+    QString escapedText = htmlEscape(messageText);
+    
+    // Проверяем, это наше сообщение или нет
+    QString myName = m_client->userName();
+    bool isSelf = (QString::compare(senderName, myName, Qt::CaseInsensitive) == 0);
+    
+    // Выбираем стили в зависимости от темы
+    QString senderStyle;
+    QString textStyle;
+    QString timeStyle;
+    
     if (m_currentTheme == Theme::Dark) {
-        timeStyle = QStringLiteral("color:#888888;");
-        senderStyle = isSelf ? QStringLiteral("font-weight:600;color:#5fb8ff;") : QStringLiteral("font-weight:600;color:#ffffff;");
-        textStyle = isSelf ? QStringLiteral("color:#d0ecff;") : QStringLiteral("color:#ffffff;");
+        timeStyle = "color:#888888;";
+        if (isSelf) {
+            senderStyle = "font-weight:600;color:#5fb8ff;";
+            textStyle = "color:#d0ecff;";
+        } else {
+            senderStyle = "font-weight:600;color:#ffffff;";
+            textStyle = "color:#ffffff;";
+        }
     } else {
-        timeStyle = QStringLiteral("color:#666666;");
-        senderStyle = isSelf ? QStringLiteral("font-weight:600;color:#0066cc;") : QStringLiteral("font-weight:600;color:#000000;");
-        textStyle = isSelf ? QStringLiteral("color:#003366;") : QStringLiteral("color:#000000;");
+        timeStyle = "color:#666666;";
+        if (isSelf) {
+            senderStyle = "font-weight:600;color:#0066cc;";
+            textStyle = "color:#003366;";
+        } else {
+            senderStyle = "font-weight:600;color:#000000;";
+            textStyle = "color:#000000;";
+        }
     }
     
-    const auto html = QStringLiteral("<div><span style=\"%1\">[%2]</span> <span style=\"%3\">%4</span>: <span style=\"%5\">%6</span></div>")
-                          .arg(timeStyle, escapedTime, senderStyle, escapedSender, textStyle, escapedText);
+    // Формируем HTML для сообщения
+    QString html = QString("<div><span style=\"%1\">[%2]</span> <span style=\"%3\">%4</span>: <span style=\"%5\">%6</span></div>")
+                      .arg(timeStyle, escapedTime, senderStyle, escapedSender, textStyle, escapedText);
     m_chatView->append(html);
+    
+    // Показываем уведомление
     showMessageNotification(message);
 }
 
@@ -249,11 +341,18 @@ void MainWindow::onConnectionStateChanged(bool connected)
 
 void MainWindow::updateUserList(const QStringList &users)
 {
+    // Очищаем список
     m_userListWidget->clear();
-    for (const auto &user : users) {
+    
+    // Добавляем всех пользователей
+    for (const QString &user : users) {
         m_userListWidget->addItem(user);
     }
-    m_userListLabel->setText(tr("Пользователи (%1):").arg(users.size()));
+    
+    // Обновляем заголовок с количеством
+    int userCount = users.size();
+    QString labelText = tr("Пользователи (%1):").arg(userCount);
+    m_userListLabel->setText(labelText);
 }
 
 void MainWindow::onErrorOccurred(const QString &message)
@@ -263,45 +362,88 @@ void MainWindow::onErrorOccurred(const QString &message)
 
 void MainWindow::appendSystemMessage(const QString &message)
 {
-    const auto timeStamp = QDateTime::currentDateTime().toString("hh:mm:ss");
-    const auto escapedTime = htmlEscape(timeStamp);
-    const auto escapedText = htmlEscape(message);
-    const QString systemColor = m_currentTheme == Theme::Dark ? QStringLiteral("#7f8c99") : QStringLiteral("#666666");
-    const auto html = QStringLiteral("<div style=\"color:%1\">[%2] <i>%3</i></div>").arg(systemColor, escapedTime, escapedText);
+    // Получаем текущее время
+    QDateTime currentTime = QDateTime::currentDateTime();
+    QString timeStamp = currentTime.toString("hh:mm:ss");
+    QString escapedTime = htmlEscape(timeStamp);
+    QString escapedText = htmlEscape(message);
+    
+    // Выбираем цвет в зависимости от темы
+    QString systemColor;
+    if (m_currentTheme == Theme::Dark) {
+        systemColor = "#7f8c99";
+    } else {
+        systemColor = "#666666";
+    }
+    
+    // Формируем HTML
+    QString html = QString("<div style=\"color:%1\">[%2] <i>%3</i></div>").arg(systemColor, escapedTime, escapedText);
     m_chatView->append(html);
 }
 
 void MainWindow::renderAllMessages()
 {
+    // Очищаем чат
     m_chatView->clear();
-    for (const auto &entry : m_chatHistory) {
+    
+    // Перерисовываем все сообщения из истории
+    for (const ChatEntry &entry : m_chatHistory) {
+        
         if (entry.isSystem) {
-            const auto timeStamp = entry.timestamp.toLocalTime().toString("hh:mm:ss");
-            const auto escapedTime = htmlEscape(timeStamp);
-            const auto escapedText = htmlEscape(entry.text);
-            const QString systemColor = m_currentTheme == Theme::Dark ? QStringLiteral("#7f8c99") : QStringLiteral("#666666");
-            const auto html = QStringLiteral("<div style=\"color:%1\">[%2] <i>%3</i></div>").arg(systemColor, escapedTime, escapedText);
-            m_chatView->append(html);
-        } else {
-            const auto timeStamp = entry.timestamp.toLocalTime().toString("hh:mm:ss");
-            const auto escapedSender = htmlEscape(entry.sender);
-            const auto escapedText = htmlEscape(entry.text);
-            const auto escapedTime = htmlEscape(timeStamp);
-            const bool isSelf = QString::compare(entry.sender, m_client->userName(), Qt::CaseInsensitive) == 0;
+            // Системное сообщение
+            QDateTime localTime = entry.timestamp.toLocalTime();
+            QString timeStamp = localTime.toString("hh:mm:ss");
+            QString escapedTime = htmlEscape(timeStamp);
+            QString escapedText = htmlEscape(entry.text);
             
-            QString senderStyle, textStyle, timeStyle;
+            QString systemColor;
             if (m_currentTheme == Theme::Dark) {
-                timeStyle = QStringLiteral("color:#888888;");
-                senderStyle = isSelf ? QStringLiteral("font-weight:600;color:#5fb8ff;") : QStringLiteral("font-weight:600;color:#ffffff;");
-                textStyle = isSelf ? QStringLiteral("color:#d0ecff;") : QStringLiteral("color:#ffffff;");
+                systemColor = "#7f8c99";
             } else {
-                timeStyle = QStringLiteral("color:#666666;");
-                senderStyle = isSelf ? QStringLiteral("font-weight:600;color:#0066cc;") : QStringLiteral("font-weight:600;color:#000000;");
-                textStyle = isSelf ? QStringLiteral("color:#003366;") : QStringLiteral("color:#000000;");
+                systemColor = "#666666";
             }
             
-            const auto html = QStringLiteral("<div><span style=\"%1\">[%2]</span> <span style=\"%3\">%4</span>: <span style=\"%5\">%6</span></div>")
-                                  .arg(timeStyle, escapedTime, senderStyle, escapedSender, textStyle, escapedText);
+            QString html = QString("<div style=\"color:%1\">[%2] <i>%3</i></div>").arg(systemColor, escapedTime, escapedText);
+            m_chatView->append(html);
+        } else {
+            // Обычное сообщение
+            QDateTime localTime = entry.timestamp.toLocalTime();
+            QString timeStamp = localTime.toString("hh:mm:ss");
+            QString escapedTime = htmlEscape(timeStamp);
+            QString escapedSender = htmlEscape(entry.sender);
+            QString escapedText = htmlEscape(entry.text);
+            
+            // Проверяем, наше ли это сообщение
+            QString myName = m_client->userName();
+            bool isSelf = (QString::compare(entry.sender, myName, Qt::CaseInsensitive) == 0);
+            
+            // Выбираем стили
+            QString senderStyle;
+            QString textStyle;
+            QString timeStyle;
+            
+            if (m_currentTheme == Theme::Dark) {
+                timeStyle = "color:#888888;";
+                if (isSelf) {
+                    senderStyle = "font-weight:600;color:#5fb8ff;";
+                    textStyle = "color:#d0ecff;";
+                } else {
+                    senderStyle = "font-weight:600;color:#ffffff;";
+                    textStyle = "color:#ffffff;";
+                }
+            } else {
+                timeStyle = "color:#666666;";
+                if (isSelf) {
+                    senderStyle = "font-weight:600;color:#0066cc;";
+                    textStyle = "color:#003366;";
+                } else {
+                    senderStyle = "font-weight:600;color:#000000;";
+                    textStyle = "color:#000000;";
+                }
+            }
+            
+            QString html = QString("<div><span style=\"%1\">[%2]</span> <span style=\"%3\">%4</span>: <span style=\"%5\">%6</span></div>")
+                              .arg(timeStyle, escapedTime, senderStyle, escapedSender, textStyle, escapedText);
             m_chatView->append(html);
         }
     }
@@ -324,10 +466,20 @@ QString MainWindow::htmlEscape(const QString &text)
 
 void MainWindow::updateControls()
 {
-    const bool connected = m_client->isConnected();
-    m_sendButton->setEnabled(connected && m_authenticated);
-    m_messageEdit->setEnabled(connected && m_authenticated);
-    m_connectButton->setText(connected ? tr("Отключиться") : tr("Подключиться"));
+    // Проверяем состояние подключения
+    bool connected = m_client->isConnected();
+    bool enabled = connected && m_authenticated;
+    
+    // Обновляем кнопки и поля
+    m_sendButton->setEnabled(enabled);
+    m_messageEdit->setEnabled(enabled);
+    
+    // Меняем текст кнопки подключения
+    if (connected) {
+        m_connectButton->setText(tr("Отключиться"));
+    } else {
+        m_connectButton->setText(tr("Подключиться"));
+    }
 }
 
 void MainWindow::showMessageNotification(const ChatMessage &message)
@@ -350,8 +502,17 @@ void MainWindow::showMessageNotification(const ChatMessage &message)
 
 void MainWindow::onThemeChanged()
 {
-    m_currentTheme = (m_currentTheme == Theme::Dark) ? Theme::Light : Theme::Dark;
+    // Переключаем тему
+    if (m_currentTheme == Theme::Dark) {
+        m_currentTheme = Theme::Light;
+    } else {
+        m_currentTheme = Theme::Dark;
+    }
+    
+    // Применяем новую тему
     applyTheme(m_currentTheme);
+    
+    // Сохраняем выбор
     saveTheme();
 }
 
@@ -359,37 +520,33 @@ void MainWindow::applyTheme(Theme theme)
 {
     if (theme == Theme::Dark) {
         // Темная тема
-        const QString darkStyle = QStringLiteral(
-            "QWidget { background-color: #2b2b2b; color: #ffffff; }"
-            "QTextEdit { background-color: #1e1e1e; color: #ffffff; border: 1px solid #3d3d3d; }"
-            "QLineEdit { background-color: #3d3d3d; color: #ffffff; border: 1px solid #555555; padding: 3px; }"
-            "QPushButton { background-color: #3d3d3d; color: #ffffff; border: 1px solid #555555; padding: 5px; }"
-            "QPushButton:hover { background-color: #4d4d4d; }"
-            "QPushButton:pressed { background-color: #2d2d2d; }"
-            "QLabel { color: #ffffff; }"
-            "QListWidget { background-color: #1e1e1e; color: #ffffff; border: 1px solid #3d3d3d; }"
-            "QListWidget::item { padding: 3px; }"
-            "QListWidget::item:selected { background-color: #3d3d3d; }"
-        );
+        QString darkStyle = "QWidget { background-color: #2b2b2b; color: #ffffff; }"
+                           "QTextEdit { background-color: #1e1e1e; color: #ffffff; border: 1px solid #3d3d3d; }"
+                           "QLineEdit { background-color: #3d3d3d; color: #ffffff; border: 1px solid #555555; padding: 3px; }"
+                           "QPushButton { background-color: #3d3d3d; color: #ffffff; border: 1px solid #555555; padding: 5px; }"
+                           "QPushButton:hover { background-color: #4d4d4d; }"
+                           "QPushButton:pressed { background-color: #2d2d2d; }"
+                           "QLabel { color: #ffffff; }"
+                           "QListWidget { background-color: #1e1e1e; color: #ffffff; border: 1px solid #3d3d3d; }"
+                           "QListWidget::item { padding: 3px; }"
+                           "QListWidget::item:selected { background-color: #3d3d3d; }";
         m_centralWidget->setStyleSheet(darkStyle);
-        m_chatView->setStyleSheet(QStringLiteral("QTextEdit { background-color: #1e1e1e; color: #ffffff; border: 1px solid #3d3d3d; }"));
+        m_chatView->setStyleSheet("QTextEdit { background-color: #1e1e1e; color: #ffffff; border: 1px solid #3d3d3d; }");
         m_themeButton->setText(tr("Светлая"));
     } else {
         // Светлая тема
-        const QString lightStyle = QStringLiteral(
-            "QWidget { background-color: #f5f5f5; color: #000000; }"
-            "QTextEdit { background-color: #ffffff; color: #000000; border: 1px solid #cccccc; }"
-            "QLineEdit { background-color: #ffffff; color: #000000; border: 1px solid #cccccc; padding: 3px; }"
-            "QPushButton { background-color: #e0e0e0; color: #000000; border: 1px solid #cccccc; padding: 5px; }"
-            "QPushButton:hover { background-color: #d0d0d0; }"
-            "QPushButton:pressed { background-color: #c0c0c0; }"
-            "QLabel { color: #000000; }"
-            "QListWidget { background-color: #ffffff; color: #000000; border: 1px solid #cccccc; }"
-            "QListWidget::item { padding: 3px; }"
-            "QListWidget::item:selected { background-color: #e0e0e0; }"
-        );
+        QString lightStyle = "QWidget { background-color: #f5f5f5; color: #000000; }"
+                            "QTextEdit { background-color: #ffffff; color: #000000; border: 1px solid #cccccc; }"
+                            "QLineEdit { background-color: #ffffff; color: #000000; border: 1px solid #cccccc; padding: 3px; }"
+                            "QPushButton { background-color: #e0e0e0; color: #000000; border: 1px solid #cccccc; padding: 5px; }"
+                            "QPushButton:hover { background-color: #d0d0d0; }"
+                            "QPushButton:pressed { background-color: #c0c0c0; }"
+                            "QLabel { color: #000000; }"
+                            "QListWidget { background-color: #ffffff; color: #000000; border: 1px solid #cccccc; }"
+                            "QListWidget::item { padding: 3px; }"
+                            "QListWidget::item:selected { background-color: #e0e0e0; }";
         m_centralWidget->setStyleSheet(lightStyle);
-        m_chatView->setStyleSheet(QStringLiteral("QTextEdit { background-color: #ffffff; color: #000000; border: 1px solid #cccccc; }"));
+        m_chatView->setStyleSheet("QTextEdit { background-color: #ffffff; color: #000000; border: 1px solid #cccccc; }");
         m_themeButton->setText(tr("Темная"));
     }
     
@@ -399,14 +556,24 @@ void MainWindow::applyTheme(Theme theme)
 
 void MainWindow::loadTheme()
 {
+    // Загружаем сохраненную тему из настроек
     QSettings settings;
-    const int themeValue = settings.value(QStringLiteral("theme"), static_cast<int>(Theme::Dark)).toInt();
-    m_currentTheme = (themeValue == static_cast<int>(Theme::Light)) ? Theme::Light : Theme::Dark;
+    int defaultTheme = static_cast<int>(Theme::Dark);
+    QVariant themeValue = settings.value("theme", defaultTheme);
+    int themeInt = themeValue.toInt();
+    
+    if (themeInt == static_cast<int>(Theme::Light)) {
+        m_currentTheme = Theme::Light;
+    } else {
+        m_currentTheme = Theme::Dark;
+    }
 }
 
 void MainWindow::saveTheme()
 {
+    // Сохраняем текущую тему в настройки
     QSettings settings;
-    settings.setValue(QStringLiteral("theme"), static_cast<int>(m_currentTheme));
+    int themeInt = static_cast<int>(m_currentTheme);
+    settings.setValue("theme", themeInt);
 }
 

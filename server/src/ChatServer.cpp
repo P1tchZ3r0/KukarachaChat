@@ -35,20 +35,26 @@ const QString kAdminUser = QStringLiteral("admin");
 
 ChatServer::ChatServer(QObject *parent)
     : QTcpServer(parent)
-    , m_userStore(QCoreApplication::applicationDirPath() + QStringLiteral("/users.json"))
+    , m_userStore(QCoreApplication::applicationDirPath() + "/users.json")
     , m_allowRegistration(parseAllowRegistration())
 {
-    if (!m_userStore.load()) {
+    
+    // Загружаем пользователей
+    bool loaded = m_userStore.load();
+    if (loaded == false) {
         qCWarning(chatServerCore) << "Не удалось загрузить базу пользователей, новые аккаунты не будут сохранены";
     }
     
     // Настройка пути для логов
-    const auto appDir = QCoreApplication::applicationDirPath();
-    const auto logsDir = appDir + QStringLiteral("/logs");
-    QDir().mkpath(logsDir);
+    QString appDir = QCoreApplication::applicationDirPath();
+    QString logsDir = appDir + "/logs";
+    QDir dir;
+    dir.mkpath(logsDir);
     
-    const auto sessionStartTime = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd_hh-mm-ss"));
-    m_logFilePath = logsDir + QStringLiteral("/session_") + sessionStartTime + QStringLiteral(".log");
+    // Создаем имя файла лога с текущей датой и временем
+    QDateTime currentTime = QDateTime::currentDateTime();
+    QString sessionStartTime = currentTime.toString("yyyy-MM-dd_hh-mm-ss");
+    m_logFilePath = logsDir + "/session_" + sessionStartTime + ".log";
     
     qCInfo(chatServerCore) << "Логи сессии будут сохраняться в:" << m_logFilePath;
 }
@@ -68,30 +74,46 @@ bool ChatServer::start(quint16 port)
 
 void ChatServer::stop()
 {
+    // Закрываем сервер
     close();
-    for (auto *client : m_clients) {
-        client->deleteLater();
+    
+    // Удаляем всех клиентов
+    for (ClientConnection *client : m_clients) {
+        if (client) {
+            client->deleteLater();
+        }
     }
+    
+    // Очищаем списки
     m_clients.clear();
     m_clientsByName.clear();
+    
     qCInfo(chatServerCore) << "Сервер остановлен";
 }
 
 void ChatServer::incomingConnection(qintptr socketDescriptor)
 {
-    auto *socket = new QTcpSocket(this);
-    if (!socket->setSocketDescriptor(socketDescriptor)) {
+    // Создаем новый сокет для клиента
+    QTcpSocket *socket = new QTcpSocket(this);
+    
+    // Устанавливаем дескриптор сокета
+    bool ok = socket->setSocketDescriptor(socketDescriptor);
+    if (ok == false) {
         qCWarning(chatServerCore) << "Не удалось принять подключение:" << socket->errorString();
         socket->deleteLater();
         return;
     }
 
-    auto *connection = new ClientConnection(socket, this);
+    // Создаем объект соединения с клиентом
+    ClientConnection *connection = new ClientConnection(socket, this);
+    
+    // Подключаем сигналы
     connect(connection, &ClientConnection::messageReceived, this, [this, connection](const ChatMessage &message) {
         onMessageReceived(message, connection);
     });
     connect(connection, &ClientConnection::connectionClosed, this, &ChatServer::onConnectionClosed);
 
+    // Добавляем в список клиентов
     m_clients.push_back(connection);
 
     qCInfo(chatServerCore) << "Новый клиент:" << socket->peerAddress().toString();
@@ -99,13 +121,18 @@ void ChatServer::incomingConnection(qintptr socketDescriptor)
 
 void ChatServer::onMessageReceived(const ChatMessage &message, ClientConnection *sender)
 {
-    if (!sender) {
+    // Проверяем, что отправитель существует
+    if (sender == nullptr) {
         qCWarning(chatServerCore) << "Получено сообщение, но отправитель неизвестен";
         return;
     }
 
-    const auto requestedName = message.sender().trimmed();
-    if (!sender->isAuthenticated()) {
+    // Получаем имя пользователя из сообщения
+    QString messageSender = message.sender();
+    QString requestedName = messageSender.trimmed();
+    
+    // Если пользователь еще не авторизован, обрабатываем авторизацию
+    if (sender->isAuthenticated() == false) {
         if (requestedName.isEmpty()) {
             sender->sendMessage(ChatMessage{"SERVER", tr("AUTH_FAIL: Логин не может быть пустым")});
             sender->disconnectFromServer();
@@ -126,13 +153,20 @@ void ChatServer::onMessageReceived(const ChatMessage &message, ClientConnection 
 
         QString errorMessage;
         UserStore::AuthResult authResult;
-        const bool userExists = m_userStore.contains(requestedName);
+        
+        // Проверяем, существует ли пользователь
+        bool userExists = m_userStore.contains(requestedName);
 
         if (userExists) {
-            authResult = m_userStore.authenticate(requestedName, message.text(), errorMessage);
+            // Пытаемся авторизовать существующего пользователя
+            QString password = message.text();
+            authResult = m_userStore.authenticate(requestedName, password, errorMessage);
         } else if (m_allowRegistration) {
-            authResult = m_userStore.registerUser(requestedName, message.text(), errorMessage);
+            // Регистрируем нового пользователя
+            QString password = message.text();
+            authResult = m_userStore.registerUser(requestedName, password, errorMessage);
         } else {
+            // Пользователь не найден и регистрация запрещена
             authResult = UserStore::AuthResult::UserNotFound;
             errorMessage = tr("Пользователь не найден. Обратитесь к администратору для регистрации");
         }
@@ -181,13 +215,20 @@ void ChatServer::onMessageReceived(const ChatMessage &message, ClientConnection 
         return;
     }
 
-    const auto text = message.text().trimmed();
-    if (text.isEmpty()) {
+    // Получаем текст сообщения
+    QString messageText = message.text();
+    QString trimmedText = messageText.trimmed();
+    if (trimmedText.isEmpty()) {
         return;
     }
 
-    if (QString::compare(sender->userName(), kAdminUser, Qt::CaseInsensitive) == 0) {
-        if (handleAdminCommand(ChatMessage{sender->userName(), text, message.timestamp()}, sender)) {
+    // Проверяем, является ли отправитель администратором
+    QString senderName = sender->userName();
+    bool isAdmin = (QString::compare(senderName, kAdminUser, Qt::CaseInsensitive) == 0);
+    if (isAdmin) {
+        ChatMessage adminMessage(senderName, trimmedText, message.timestamp());
+        bool handled = handleAdminCommand(adminMessage, sender);
+        if (handled) {
             return;
         }
     }
@@ -195,13 +236,13 @@ void ChatServer::onMessageReceived(const ChatMessage &message, ClientConnection 
     qCInfo(chatServerCore) << "Сообщение от" << message.sender() << ':' << message.text();
     
     // Сохраняем сообщение в историю и лог
-    const ChatMessage chatMessage{message.sender(), message.text(), message.timestamp()};
+    ChatMessage chatMessage(message.sender(), message.text(), message.timestamp());
     addMessageToHistory(chatMessage);
     saveMessageToLog(chatMessage);
     
     // Отправляем всем клиентам
-    for (auto *client : m_clients) {
-        if (client) {
+    for (ClientConnection *client : m_clients) {
+        if (client != nullptr) {
             client->sendMessage(chatMessage);
         }
     }
@@ -209,12 +250,23 @@ void ChatServer::onMessageReceived(const ChatMessage &message, ClientConnection 
 
 void ChatServer::onConnectionClosed(ClientConnection *connection)
 {
-    const auto end = std::remove(m_clients.begin(), m_clients.end(), connection);
-    m_clients.erase(end, m_clients.end());
-    if (connection && connection->hasUserName()) {
-        const auto name = connection->userName();
+    // Удаляем клиента из списка
+    std::vector<ClientConnection *>::iterator it = m_clients.begin();
+    while (it != m_clients.end()) {
+        if (*it == connection) {
+            it = m_clients.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    
+    // Если у клиента было имя, удаляем его из списка имен
+    if (connection != nullptr && connection->hasUserName()) {
+        QString name = connection->userName();
         m_clientsByName.remove(name);
-        broadcastSystemMessage(tr("%1 покинул чат").arg(name));
+        QString message = tr("%1 покинул чат").arg(name);
+        broadcastSystemMessage(message);
+        
         // Отправляем обновленный список пользователей всем остальным
         broadcastUserList();
     }
@@ -223,12 +275,14 @@ void ChatServer::onConnectionClosed(ClientConnection *connection)
 
 void ChatServer::broadcastSystemMessage(const QString &text)
 {
-    const ChatMessage systemMessage{QStringLiteral("SERVER"), text};
+    // Создаем системное сообщение
+    ChatMessage systemMessage("SERVER", text);
     addMessageToHistory(systemMessage);
     saveMessageToLog(systemMessage);
     
-    for (auto *client : m_clients) {
-        if (client) {
+    // Отправляем всем клиентам
+    for (ClientConnection *client : m_clients) {
+        if (client != nullptr) {
             client->sendMessage(systemMessage);
         }
     }
@@ -370,17 +424,24 @@ ClientConnection *ChatServer::findClientByName(const QString &name) const
 
 void ChatServer::saveMessageToLog(const ChatMessage &message)
 {
+    // Открываем файл лога для записи
     QFile logFile(m_logFilePath);
-    if (!logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+    bool opened = logFile.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text);
+    if (opened == false) {
         qCWarning(chatServerCore) << "Не удалось открыть файл лога для записи:" << m_logFilePath;
         return;
     }
     
+    // Записываем сообщение в лог
     QTextStream stream(&logFile);
     
-    const auto timestamp = message.timestamp().toLocalTime().toString(QStringLiteral("yyyy-MM-dd hh:mm:ss"));
-    stream << QStringLiteral("[%1] <%2> %3\n")
-              .arg(timestamp, message.sender(), message.text());
+    QDateTime timestamp = message.timestamp();
+    QDateTime localTime = timestamp.toLocalTime();
+    QString timeString = localTime.toString("yyyy-MM-dd hh:mm:ss");
+    QString sender = message.sender();
+    QString text = message.text();
+    
+    stream << "[" << timeString << "] <" << sender << "> " << text << "\n";
     
     logFile.close();
 }
@@ -397,61 +458,74 @@ void ChatServer::addMessageToHistory(const ChatMessage &message)
 
 void ChatServer::sendMessageHistory(ClientConnection *client)
 {
-    if (!client || m_messageHistory.empty()) {
+    // Проверяем, что клиент существует и есть история
+    if (client == nullptr || m_messageHistory.empty()) {
         return;
     }
     
-    qCInfo(chatServerCore) << "Отправка истории из" << m_messageHistory.size() << "сообщений пользователю" << client->userName();
+    int historySize = m_messageHistory.size();
+    qCInfo(chatServerCore) << "Отправка истории из" << historySize << "сообщений пользователю" << client->userName();
     
     // Отправляем системное сообщение о начале истории
-    client->sendMessage(ChatMessage{
-        QStringLiteral("SERVER"),
-        tr("--- История сообщений (%1 сообщений) ---").arg(m_messageHistory.size())
-    });
+    QString startMessage = tr("--- История сообщений (%1 сообщений) ---").arg(historySize);
+    ChatMessage startMsg("SERVER", startMessage);
+    client->sendMessage(startMsg);
     
     // Отправляем все сообщения из истории
-    for (const auto &message : m_messageHistory) {
-        client->sendMessage(message);
+    for (const ChatMessage &msg : m_messageHistory) {
+        client->sendMessage(msg);
     }
     
     // Отправляем системное сообщение о конце истории
-    client->sendMessage(ChatMessage{
-        QStringLiteral("SERVER"),
-        tr("--- Конец истории ---")
-    });
+    QString endMessage = tr("--- Конец истории ---");
+    ChatMessage endMsg("SERVER", endMessage);
+    client->sendMessage(endMsg);
 }
 
 void ChatServer::sendUserList(ClientConnection *client)
 {
-    if (!client) {
+    // Проверяем, что клиент существует
+    if (client == nullptr) {
         return;
     }
     
+    // Собираем список пользователей
     QStringList userList;
-    for (auto it = m_clientsByName.begin(); it != m_clientsByName.end(); ++it) {
-        if (it.value() && it.value()->isAuthenticated()) {
-            userList.append(it.key());
+    QHash<QString, ClientConnection *>::iterator it = m_clientsByName.begin();
+    while (it != m_clientsByName.end()) {
+        ClientConnection *conn = it.value();
+        if (conn != nullptr && conn->isAuthenticated()) {
+            QString userName = it.key();
+            userList.append(userName);
         }
+        ++it;
     }
     
-    const QString userListStr = QStringLiteral("USER_LIST:") + userList.join(QStringLiteral(","));
-    client->sendMessage(ChatMessage{QStringLiteral("SERVER"), userListStr});
+    // Формируем строку со списком пользователей
+    QString userListStr = "USER_LIST:" + userList.join(",");
+    ChatMessage msg("SERVER", userListStr);
+    client->sendMessage(msg);
 }
 
 void ChatServer::broadcastUserList()
 {
+    // Собираем список всех авторизованных пользователей
     QStringList userList;
     for (auto it = m_clientsByName.begin(); it != m_clientsByName.end(); ++it) {
-        if (it.value() && it.value()->isAuthenticated()) {
-            userList.append(it.key());
+        ClientConnection *conn = it.value();
+        if (conn != nullptr && conn->isAuthenticated()) {
+            QString userName = it.key();
+            userList.append(userName);
         }
     }
     
-    const QString userListStr = QStringLiteral("USER_LIST:") + userList.join(QStringLiteral(","));
-    const ChatMessage systemMessage{QStringLiteral("SERVER"), userListStr};
+    // Формируем сообщение со списком пользователей
+    QString userListStr = "USER_LIST:" + userList.join(",");
+    ChatMessage systemMessage("SERVER", userListStr);
     
-    for (auto *client : m_clients) {
-        if (client && client->isAuthenticated()) {
+    // Отправляем всем авторизованным клиентам
+    for (ClientConnection *client : m_clients) {
+        if (client != nullptr && client->isAuthenticated()) {
             client->sendMessage(systemMessage);
         }
     }
