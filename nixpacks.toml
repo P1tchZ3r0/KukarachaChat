@@ -1,0 +1,13 @@
+[phases.setup]
+nixPkgs = ["cmake", "gcc", "qt6.full"]
+
+[phases.build]
+cmds = [
+  "mkdir -p build",
+  "cd build",
+  "cmake ..",
+  "make"
+]
+
+[start]
+cmd = "./build/server/KukarachaServer"
