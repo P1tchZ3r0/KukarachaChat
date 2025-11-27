@@ -25,6 +25,7 @@ signals:
     void connectionStateChanged(bool connected);
     void errorOccurred(const QString &message);
     void authenticatedChanged(bool authenticated);
+    void userListReceived(const QStringList &users);
 
 private slots:
     void handleReadyRead();

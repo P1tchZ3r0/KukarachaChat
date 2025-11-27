@@ -1,19 +1,24 @@
 {
     "users": [
         {
+            "hash": "8fcecc033487155d0341ec5328fbb8a0f65bc81aa81b9a74d300ceaf8d096a16",
+            "login": "admin",
+            "salt": "56332dfb1e0dda3d"
+        },
+        {
             "hash": "4a4ed09aa1728f107526170e36b7dd76050c6488897afcf0c51411923e706399",
             "login": "user2",
             "salt": "4ed4f811292c5805"
         },
         {
+            "hash": "894679e4fd27f5df5b074a7caccf4b86127f8147972e65fb1780d2584f29619b",
+            "login": "P1tch_z3r0",
+            "salt": "1ca7ae961185c89"
+        },
+        {
             "hash": "bb347fcf861b640d7e1e7c7dfbdaf65cb99b6978cb7c2b48690a1fc4a8d43e34",
             "login": "user1",
             "salt": "b784726d3ad8d90e"
-        },
-        {
-            "hash": "8fcecc033487155d0341ec5328fbb8a0f65bc81aa81b9a74d300ceaf8d096a16",
-            "login": "admin",
-            "salt": "56332dfb1e0dda3d"
         }
     ]
 }

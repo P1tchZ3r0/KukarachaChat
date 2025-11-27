@@ -2,6 +2,7 @@
 
 #include <QDateTime>
 #include <QLoggingCategory>
+#include <QStringList>
 
 #include <exception>
 
@@ -129,6 +130,16 @@ void ChatClient::processPayload(const QByteArray &payload)
                     QDateTime::currentDateTimeUtc()
                 });
                 m_socket.disconnectFromHost();
+                return;
+            }
+
+            if (text.startsWith(QStringLiteral("USER_LIST:"))) {
+                const auto userListStr = text.mid(QStringLiteral("USER_LIST:").size());
+                QStringList userList;
+                if (!userListStr.isEmpty()) {
+                    userList = userListStr.split(QStringLiteral(","), Qt::SkipEmptyParts);
+                }
+                emit userListReceived(userList);
                 return;
             }
         }
