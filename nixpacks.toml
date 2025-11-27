@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["cmake", "gcc", "qt6.full"]
+nixPkgs = ["cmake", "gcc", "qt6.base"]
 
 [phases.build]
 cmds = [
